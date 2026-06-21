@@ -1,4 +1,40 @@
-import { useState, useEffect } from "react";
+function QRCode({ mesa, id }) {
+  const canvasRef = useRef(null);
+  const url = `https://cafeteria-app-plum.vercel.app/?mesa=${encodeURIComponent(mesa)}`;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
+    script.onload = () => {
+      canvas.innerHTML = "";
+      new window.QRCode(canvas, {
+        text: url,
+        width: 160,
+        height: 160,
+        colorDark: "#1a1a1a",
+        colorLight: "#ffffff",
+        correctLevel: window.QRCode.CorrectLevel.H,
+      });
+    };
+    if (!window.QRCode) {
+      document.head.appendChild(script);
+    } else {
+      canvas.innerHTML = "";
+      new window.QRCode(canvas, {
+        text: url,
+        width: 160,
+        height: 160,
+        colorDark: "#1a1a1a",
+        colorLight: "#ffffff",
+        correctLevel: window.QRCode.CorrectLevel.H,
+      });
+    }
+  }, [mesa]);
+
+  return <div id={id} ref={canvasRef} style={{ width: 160, height: 160 }} />;
+}import { useState, useEffect, useRef } from "react";
 
 const initialMenu = [
   { id: 1, categoria: "Cafés", nombre: "Espresso", precio: 1500, descripcion: "Café concentrado", disponible: true, emoji: "☕" },
@@ -13,51 +49,7 @@ const initialMenu = [
 
 const MESAS = ["Mesa 1", "Mesa 2", "Mesa 3", "Mesa 4", "Mesa 5", "Bar"];
 
-function QRCode({ mesa, id }) {
-  const size = 160;
-  const data = `Mesa: ${mesa} - Café Del Centro`;
-  // QR simplificado visual usando módulos SVG
-  const seed = mesa.charCodeAt(mesa.length - 1) + mesa.length;
-  const modules = 21;
-  const mod = size / modules;
-  
-  const fixed = [];
-  // Esquinas fijas (finder patterns)
-  for (let r = 0; r < 7; r++) for (let c = 0; c < 7; c++) {
-    const border = r===0||r===6||c===0||c===6;
-    const inner = r>=2&&r<=4&&c>=2&&c<=4;
-    if (border || inner) {
-      fixed.push([r,c]);
-      fixed.push([r, modules-1-c]);
-      fixed.push([modules-1-r, c]);
-    }
-  }
-  const fixedSet = new Set(fixed.map(([r,c])=>`${r},${c}`));
-  
-  const cells = [];
-  for (let r = 0; r < modules; r++) {
-    for (let c = 0; c < modules; c++) {
-      const key = `${r},${c}`;
-      let on = false;
-      if (fixedSet.has(key)) {
-        on = true;
-      } else {
-        const h = ((r * 31 + c * 17 + seed * 7) ^ (r * c + seed)) % 100;
-        on = h < 45;
-      }
-      if (on) cells.push({ r, c });
-    }
-  }
-  
-  return (
-    <svg id={id} width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: "block" }}>
-      <rect width={size} height={size} fill="white" />
-      {cells.map(({ r, c }) => (
-        <rect key={`${r},${c}`} x={c * mod} y={r * mod} width={mod} height={mod} fill="#1a1a1a" />
-      ))}
-    </svg>
-  );
-}
+
 
 const colors = {
   bg: "#FDF6EE",
@@ -316,8 +308,8 @@ export default function CafeteriaApp() {
               </div>
               <div style={{ ...s.card, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "24px" }}>
                 <div style={{ fontWeight: 700, fontSize: 18 }}>☕ Café Del Centro</div>
-                <div style={{ border: `4px solid ${colors.primary}`, borderRadius: 12, padding: 12, background: "#fff" }}>
-                  <QRCode mesa={mesaQR} id="qr-svg-export" />
+                <div id="qr-svg-export" style={{ border: `4px solid ${colors.primary}`, borderRadius: 12, padding: 12, background: "#fff" }}>
+                  <QRCode mesa={mesaQR} id="qr-canvas" />
                 </div>
                 <div style={{ fontWeight: 600, fontSize: 16, color: colors.accent }}>{mesaQR}</div>
                 <div style={{ fontSize: 13, color: colors.muted, textAlign: "center" }}>Escaneá para ver el menú y hacer tu pedido</div>
