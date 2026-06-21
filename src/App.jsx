@@ -1,40 +1,4 @@
-function QRCode({ mesa, id }) {
-  const canvasRef = useRef(null);
-  const url = `https://cafeteria-app-plum.vercel.app/?mesa=${encodeURIComponent(mesa)}`;
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const script = document.createElement("script");
-    script.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
-    script.onload = () => {
-      canvas.innerHTML = "";
-      new window.QRCode(canvas, {
-        text: url,
-        width: 160,
-        height: 160,
-        colorDark: "#1a1a1a",
-        colorLight: "#ffffff",
-        correctLevel: window.QRCode.CorrectLevel.H,
-      });
-    };
-    if (!window.QRCode) {
-      document.head.appendChild(script);
-    } else {
-      canvas.innerHTML = "";
-      new window.QRCode(canvas, {
-        text: url,
-        width: 160,
-        height: 160,
-        colorDark: "#1a1a1a",
-        colorLight: "#ffffff",
-        correctLevel: window.QRCode.CorrectLevel.H,
-      });
-    }
-  }, [mesa]);
-
-  return <div id={id} ref={canvasRef} style={{ width: 160, height: 160 }} />;
-}import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const initialMenu = [
   { id: 1, categoria: "Cafés", nombre: "Espresso", precio: 1500, descripcion: "Café concentrado", disponible: true, emoji: "☕" },
@@ -48,45 +12,63 @@ const initialMenu = [
 ];
 
 const MESAS = ["Mesa 1", "Mesa 2", "Mesa 3", "Mesa 4", "Mesa 5", "Bar"];
-
-
+const DEFAULT_PASSWORD = "cafe1234";
 
 const colors = {
-  bg: "#FDF6EE",
-  card: "#FFFFFF",
-  primary: "#6B3A2A",
-  accent: "#C8813A",
-  light: "#F5E6D3",
-  muted: "#9A7B6B",
-  border: "#E8D5C0",
-  success: "#3B6D11",
-  successBg: "#EAF3DE",
-  warning: "#854F0B",
-  warningBg: "#FAEEDA",
-  danger: "#A32D2D",
-  dangerBg: "#FCEBEB",
+  bg: "#FDF6EE", card: "#FFFFFF", primary: "#6B3A2A", accent: "#C8813A",
+  light: "#F5E6D3", muted: "#9A7B6B", border: "#E8D5C0",
+  success: "#3B6D11", successBg: "#EAF3DE",
+  warning: "#854F0B", warningBg: "#FAEEDA",
+  danger: "#A32D2D", dangerBg: "#FCEBEB",
+  info: "#185FA5", infoBg: "#E6F1FB",
 };
 
+function QRCode({ mesa, id }) {
+  const canvasRef = useRef(null);
+  const url = `https://cafeteria-app-plum.vercel.app/?mesa=${encodeURIComponent(mesa)}`;
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const gen = () => {
+      canvas.innerHTML = "";
+      new window.QRCode(canvas, { text: url, width: 160, height: 160, colorDark: "#1a1a1a", colorLight: "#ffffff", correctLevel: window.QRCode.CorrectLevel.H });
+    };
+    if (!window.QRCode) {
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
+      s.onload = gen;
+      document.head.appendChild(s);
+    } else gen();
+  }, [mesa]);
+  return <div id={id} ref={canvasRef} style={{ width: 160, height: 160 }} />;
+}
+
 export default function CafeteriaApp() {
-  const [vista, setVista] = useState("menu"); // menu | panel
+  const [vista, setVista] = useState("menu");
   const [menu, setMenu] = useState(initialMenu);
   const [pedidos, setPedidos] = useState([]);
   const [carrito, setCarrito] = useState([]);
   const [mesaSeleccionada, setMesaSeleccionada] = useState("Mesa 1");
   const [categoriaActiva, setCategoriaActiva] = useState("Todos");
   const [pedidoEnviado, setPedidoEnviado] = useState(false);
-  const [panelTab, setPanelTab] = useState("pedidos"); // pedidos | menu
+  const [miPedidoId, setMiPedidoId] = useState(null);
+  const [panelTab, setPanelTab] = useState("pedidos");
   const [editando, setEditando] = useState(null);
   const [nuevoProducto, setNuevoProducto] = useState({ nombre: "", precio: "", categoria: "Cafés", descripcion: "", emoji: "☕" });
   const [mostrandoFormulario, setMostrandoFormulario] = useState(false);
   const [mostrandoQR, setMostrandoQR] = useState(false);
   const [mesaQR, setMesaQR] = useState("Mesa 1");
+  const [adminPass, setAdminPass] = useState(DEFAULT_PASSWORD);
+  const [adminLogueado, setAdminLogueado] = useState(false);
+  const [inputPass, setInputPass] = useState("");
+  const [errorPass, setErrorPass] = useState(false);
+  const [cambiandoPass, setCambiandoPass] = useState(false);
+  const [nuevaPass, setNuevaPass] = useState({ actual: "", nueva: "", confirmar: "" });
+  const [mesaFiltro, setMesaFiltro] = useState("Todas");
 
   const categorias = ["Todos", ...new Set(menu.map(p => p.categoria))];
-
-  const menuFiltrado = categoriaActiva === "Todos"
-    ? menu.filter(p => p.disponible)
-    : menu.filter(p => p.categoria === categoriaActiva && p.disponible);
+  const menuFiltrado = categoriaActiva === "Todos" ? menu.filter(p => p.disponible) : menu.filter(p => p.categoria === categoriaActiva && p.disponible);
+  const totalCarrito = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
 
   const agregarAlCarrito = (producto) => {
     setCarrito(prev => {
@@ -104,36 +86,19 @@ export default function CafeteriaApp() {
     });
   };
 
-  const totalCarrito = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
-  const cantidadCarrito = carrito.reduce((s, i) => s + i.cantidad, 0);
-
   const enviarPedido = () => {
     if (carrito.length === 0) return;
-    const nuevoPedido = {
-      id: Date.now(),
-      mesa: mesaSeleccionada,
-      items: [...carrito],
-      total: totalCarrito,
-      estado: "pendiente",
-      hora: new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }),
-    };
-    setPedidos(prev => [nuevoPedido, ...prev]);
+    const id = Date.now();
+    const nuevo = { id, mesa: mesaSeleccionada, items: [...carrito], total: totalCarrito, estado: "pendiente", hora: new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) };
+    setPedidos(prev => [nuevo, ...prev]);
     setCarrito([]);
+    setMiPedidoId(id);
     setPedidoEnviado(true);
-    setTimeout(() => setPedidoEnviado(false), 3000);
   };
 
-  const cambiarEstado = (id, estado) => {
-    setPedidos(prev => prev.map(p => p.id === id ? { ...p, estado } : p));
-  };
-
-  const toggleDisponible = (id) => {
-    setMenu(prev => prev.map(p => p.id === id ? { ...p, disponible: !p.disponible } : p));
-  };
-
-  const eliminarProducto = (id) => {
-    setMenu(prev => prev.filter(p => p.id !== id));
-  };
+  const cambiarEstado = (id, estado) => setPedidos(prev => prev.map(p => p.id === id ? { ...p, estado } : p));
+  const toggleDisponible = (id) => setMenu(prev => prev.map(p => p.id === id ? { ...p, disponible: !p.disponible } : p));
+  const eliminarProducto = (id) => setMenu(prev => prev.filter(p => p.id !== id));
 
   const guardarProducto = () => {
     if (!nuevoProducto.nombre || !nuevoProducto.precio) return;
@@ -153,28 +118,42 @@ export default function CafeteriaApp() {
     setMostrandoFormulario(true);
   };
 
+  const loginAdmin = () => {
+    if (inputPass === adminPass) { setAdminLogueado(true); setErrorPass(false); setInputPass(""); }
+    else { setErrorPass(true); }
+  };
+
+  const cambiarContrasena = () => {
+    if (nuevaPass.actual !== adminPass) { alert("Contraseña actual incorrecta"); return; }
+    if (nuevaPass.nueva !== nuevaPass.confirmar) { alert("Las contraseñas nuevas no coinciden"); return; }
+    if (nuevaPass.nueva.length < 4) { alert("La contraseña debe tener al menos 4 caracteres"); return; }
+    setAdminPass(nuevaPass.nueva);
+    setNuevaPass({ actual: "", nueva: "", confirmar: "" });
+    setCambiandoPass(false);
+    alert("✅ Contraseña cambiada con éxito");
+  };
+
+  const miPedido = pedidos.find(p => p.id === miPedidoId);
+
+  const pedidosFiltrados = mesaFiltro === "Todas" ? pedidos : pedidos.filter(p => p.mesa === mesaFiltro);
+  const pedidosActivosPorMesa = MESAS.reduce((acc, m) => {
+    acc[m] = pedidos.filter(p => p.mesa === m && p.estado !== "listo").length;
+    return acc;
+  }, {});
+
   const estadoBadge = (estado) => {
-    const estilos = {
-      pendiente: { bg: colors.warningBg, color: colors.warning, texto: "⏳ Pendiente" },
-      preparando: { bg: "#E6F1FB", color: "#185FA5", texto: "🔄 Preparando" },
-      listo: { bg: colors.successBg, color: colors.success, texto: "✅ Listo" },
-    };
-    const e = estilos[estado];
+    const e = { pendiente: { bg: colors.warningBg, color: colors.warning, texto: "⏳ Pendiente" }, preparando: { bg: colors.infoBg, color: colors.info, texto: "🔄 Preparando" }, listo: { bg: colors.successBg, color: colors.success, texto: "✅ Listo" } }[estado];
     return <span style={{ background: e.bg, color: e.color, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 500 }}>{e.texto}</span>;
   };
 
   const s = {
     app: { minHeight: "100vh", background: colors.bg, fontFamily: "sans-serif", color: colors.primary },
     header: { background: colors.primary, color: "#fff", padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" },
-    tabBtn: (active) => ({ padding: "7px 18px", borderRadius: 20, border: "none", cursor: "pointer", fontWeight: 500, fontSize: 13, background: active ? "#fff" : "transparent", color: active ? colors.primary : "#fff" }),
     card: { background: colors.card, borderRadius: 12, border: `1px solid ${colors.border}`, padding: "14px 16px", marginBottom: 12 },
-    btn: (variant = "primary") => ({
-      padding: "9px 18px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 500, fontSize: 14,
-      background: variant === "primary" ? colors.accent : variant === "danger" ? colors.dangerBg : colors.light,
-      color: variant === "primary" ? "#fff" : variant === "danger" ? colors.danger : colors.primary,
-    }),
+    btn: (v = "primary") => ({ padding: "9px 18px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 500, fontSize: 14, background: v === "primary" ? colors.accent : v === "danger" ? colors.dangerBg : v === "success" ? colors.successBg : colors.light, color: v === "primary" ? "#fff" : v === "danger" ? colors.danger : v === "success" ? colors.success : colors.primary }),
     input: { width: "100%", padding: "8px 12px", borderRadius: 8, border: `1px solid ${colors.border}`, fontSize: 14, boxSizing: "border-box", background: "#fff" },
     section: { maxWidth: 680, margin: "0 auto", padding: "16px 16px 80px" },
+    tabBtn: (active) => ({ padding: "7px 18px", borderRadius: 20, border: "none", cursor: "pointer", fontWeight: 500, fontSize: 13, background: active ? "#fff" : "transparent", color: active ? colors.primary : "#fff" }),
   };
 
   return (
@@ -185,42 +164,26 @@ export default function CafeteriaApp() {
           <span style={{ fontWeight: 600, fontSize: 16 }}>Café Del Centro</span>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
-          <button style={s.tabBtn(vista === "menu")} onClick={() => setVista("menu")}>Menú QR</button>
-          <button style={s.tabBtn(vista === "panel")} onClick={() => setVista("panel")}>
-            Panel {pedidos.filter(p => p.estado === "pendiente").length > 0 && <span style={{ background: "#E24B4A", color: "#fff", borderRadius: "50%", width: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, marginLeft: 5 }}>{pedidos.filter(p => p.estado === "pendiente").length}</span>}
+          <button style={s.tabBtn(vista === "menu")} onClick={() => { setVista("menu"); setPedidoEnviado(false); }}>Menú</button>
+          {miPedido && <button style={s.tabBtn(vista === "seguimiento")} onClick={() => setVista("seguimiento")}>Mi pedido</button>}
+          <button style={s.tabBtn(vista === "admin")} onClick={() => setVista("admin")}>
+            Admin {pedidos.filter(p => p.estado === "pendiente").length > 0 && <span style={{ background: "#E24B4A", color: "#fff", borderRadius: "50%", width: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, marginLeft: 5 }}>{pedidos.filter(p => p.estado === "pendiente").length}</span>}
           </button>
         </div>
       </div>
 
+      {/* VISTA MENÚ */}
       {vista === "menu" && (
         <div style={s.section}>
-          {pedidoEnviado && (
-            <div style={{ background: colors.successBg, color: colors.success, border: `1px solid #C0DD97`, borderRadius: 10, padding: "12px 16px", marginBottom: 16, textAlign: "center", fontWeight: 500 }}>
-              ✅ ¡Pedido enviado a la barra!
-            </div>
-          )}
-
           <div style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 13, color: colors.muted, display: "block", marginBottom: 6 }}>Mesa</label>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {MESAS.map(m => (
-                <button key={m} onClick={() => setMesaSeleccionada(m)}
-                  style={{ ...s.btn(m === mesaSeleccionada ? "primary" : "sec"), padding: "6px 14px", fontSize: 13 }}>
-                  {m}
-                </button>
-              ))}
+              {MESAS.map(m => <button key={m} onClick={() => setMesaSeleccionada(m)} style={{ ...s.btn(m === mesaSeleccionada ? "primary" : "sec"), padding: "6px 14px", fontSize: 13 }}>{m}</button>)}
             </div>
           </div>
-
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-            {categorias.map(c => (
-              <button key={c} onClick={() => setCategoriaActiva(c)}
-                style={{ ...s.btn(c === categoriaActiva ? "primary" : "sec"), padding: "6px 14px", fontSize: 13 }}>
-                {c}
-              </button>
-            ))}
+            {categorias.map(c => <button key={c} onClick={() => setCategoriaActiva(c)} style={{ ...s.btn(c === categoriaActiva ? "primary" : "sec"), padding: "6px 14px", fontSize: 13 }}>{c}</button>)}
           </div>
-
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
             {menuFiltrado.map(p => {
               const enCarrito = carrito.find(i => i.id === p.id);
@@ -245,16 +208,10 @@ export default function CafeteriaApp() {
               );
             })}
           </div>
-
           {carrito.length > 0 && (
             <div style={{ position: "sticky", bottom: 16, background: colors.card, borderRadius: 14, border: `1px solid ${colors.border}`, padding: "14px 16px", boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
               <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 15 }}>🛒 Tu pedido — {mesaSeleccionada}</div>
-              {carrito.map(i => (
-                <div key={i.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4, color: colors.muted }}>
-                  <span>{i.emoji} {i.nombre} x{i.cantidad}</span>
-                  <span>${(i.precio * i.cantidad).toLocaleString()}</span>
-                </div>
-              ))}
+              {carrito.map(i => <div key={i.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4, color: colors.muted }}><span>{i.emoji} {i.nombre} x{i.cantidad}</span><span>${(i.precio * i.cantidad).toLocaleString()}</span></div>)}
               <div style={{ borderTop: `1px solid ${colors.border}`, marginTop: 10, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontWeight: 700, fontSize: 16 }}>Total: ${totalCarrito.toLocaleString()}</span>
                 <button style={s.btn("primary")} onClick={enviarPedido}>Enviar pedido</button>
@@ -264,131 +221,149 @@ export default function CafeteriaApp() {
         </div>
       )}
 
-      {vista === "panel" && (
+      {/* VISTA SEGUIMIENTO */}
+      {vista === "seguimiento" && miPedido && (
         <div style={s.section}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-            <button style={s.tabBtn(panelTab === "pedidos")} onClick={() => setPanelTab("pedidos")}
-              className="panel-tab" data-active={panelTab === "pedidos"}>
-              <span style={{ padding: "8px 16px", borderRadius: 8, background: panelTab === "pedidos" ? colors.primary : colors.light, color: panelTab === "pedidos" ? "#fff" : colors.primary, fontWeight: 500, fontSize: 13, cursor: "pointer", display: "inline-block" }}>
-                Pedidos {pedidos.filter(p => p.estado !== "listo").length > 0 && `(${pedidos.filter(p => p.estado !== "listo").length})`}
-              </span>
-            </button>
-            <button style={{ background: "none", border: "none", cursor: "pointer" }} onClick={() => setPanelTab("menu")}>
-              <span style={{ padding: "8px 16px", borderRadius: 8, background: panelTab === "menu" ? colors.primary : colors.light, color: panelTab === "menu" ? "#fff" : colors.primary, fontWeight: 500, fontSize: 13, display: "inline-block" }}>
-                Gestión del menú
-              </span>
-            </button>
-          </div>
+          <div style={s.card}>
+            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>📋 Tu pedido — {miPedido.mesa}</div>
+            <div style={{ fontSize: 13, color: colors.muted, marginBottom: 16 }}>Pedido a las {miPedido.hora}</div>
 
-          {panelTab === "pedidos" && !mostrandoQR && (
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ ...s.card, background: colors.light, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>Códigos QR por mesa</div>
-                  <div style={{ fontSize: 12, color: colors.muted }}>Mostrá o imprimí el QR para cada mesa</div>
-                </div>
-                <button style={s.btn("primary")} onClick={() => setMostrandoQR(true)}>Ver QRs</button>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+              {["pendiente", "preparando", "listo"].map((e, i) => {
+                const estados = ["pendiente", "preparando", "listo"];
+                const actual = estados.indexOf(miPedido.estado);
+                const activo = i <= actual;
+                const labels = { pendiente: "Recibido", preparando: "Preparando", listo: "¡Listo!" };
+                const emojis = { pendiente: "📥", preparando: "👨‍🍳", listo: "✅" };
+                return (
+                  <div key={e} style={{ display: "flex", alignItems: "center" }}>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ width: 48, height: 48, borderRadius: "50%", background: activo ? colors.accent : colors.light, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, margin: "0 auto 6px" }}>{emojis[e]}</div>
+                      <div style={{ fontSize: 11, fontWeight: activo ? 600 : 400, color: activo ? colors.primary : colors.muted }}>{labels[e]}</div>
+                    </div>
+                    {i < 2 && <div style={{ width: 40, height: 3, background: actual > i ? colors.accent : colors.light, margin: "0 4px 20px" }} />}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ background: colors.light, borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
+              {miPedido.items.map((item, i) => <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}><span>{item.emoji} {item.nombre} x{item.cantidad}</span><span>${(item.precio * item.cantidad).toLocaleString()}</span></div>)}
+              <div style={{ borderTop: `1px solid ${colors.border}`, marginTop: 8, paddingTop: 8, fontWeight: 700, display: "flex", justifyContent: "space-between" }}>
+                <span>Total</span><span>${miPedido.total.toLocaleString()}</span>
               </div>
             </div>
-          )}
 
-          {mostrandoQR && (
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <span style={{ fontWeight: 600, fontSize: 15 }}>Códigos QR por mesa</span>
-                <button style={s.btn("sec")} onClick={() => setMostrandoQR(false)}>Cerrar</button>
+            {miPedido.estado === "listo" && (
+              <div style={{ background: colors.successBg, color: colors.success, borderRadius: 10, padding: "12px 16px", textAlign: "center", fontWeight: 600, fontSize: 15 }}>
+                🎉 ¡Tu pedido está listo! Ya podés retirarlo.
               </div>
+            )}
+
+            <button style={{ ...s.btn("sec"), width: "100%", marginTop: 12 }} onClick={() => { setVista("menu"); setPedidoEnviado(false); setMiPedidoId(null); }}>
+              Hacer otro pedido
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* VISTA ADMIN - LOGIN */}
+      {vista === "admin" && !adminLogueado && (
+        <div style={s.section}>
+          <div style={{ ...s.card, maxWidth: 340, margin: "40px auto" }}>
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <div style={{ fontSize: 40 }}>🔒</div>
+              <div style={{ fontWeight: 700, fontSize: 18, marginTop: 8 }}>Panel Administrador</div>
+              <div style={{ fontSize: 13, color: colors.muted }}>Ingresá tu contraseña</div>
+            </div>
+            <input style={{ ...s.input, marginBottom: 8, textAlign: "center", letterSpacing: 4 }} type="password" placeholder="Contraseña" value={inputPass} onChange={e => setInputPass(e.target.value)} onKeyDown={e => e.key === "Enter" && loginAdmin()} />
+            {errorPass && <div style={{ color: colors.danger, fontSize: 13, textAlign: "center", marginBottom: 8 }}>Contraseña incorrecta</div>}
+            <button style={{ ...s.btn("primary"), width: "100%" }} onClick={loginAdmin}>Ingresar</button>
+          </div>
+        </div>
+      )}
+
+      {/* VISTA ADMIN - PANEL */}
+      {vista === "admin" && adminLogueado && (
+        <div style={s.section}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div style={{ display: "flex", gap: 8 }}>
+              {["pedidos", "menu", "qr"].map(t => (
+                <button key={t} onClick={() => setPanelTab(t)} style={{ padding: "8px 16px", borderRadius: 8, background: panelTab === t ? colors.primary : colors.light, color: panelTab === t ? "#fff" : colors.primary, fontWeight: 500, fontSize: 13, border: "none", cursor: "pointer" }}>
+                  {t === "pedidos" ? "Pedidos" : t === "menu" ? "Menú" : "QR"}
+                </button>
+              ))}
+            </div>
+            <button style={{ ...s.btn("sec"), padding: "6px 12px", fontSize: 12 }} onClick={() => { setAdminLogueado(false); }}>Salir</button>
+          </div>
+
+          {/* PEDIDOS POR MESA */}
+          {panelTab === "pedidos" && (
+            <div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                <button onClick={() => setMesaFiltro("Todas")} style={{ padding: "6px 14px", borderRadius: 20, border: "none", cursor: "pointer", background: mesaFiltro === "Todas" ? colors.accent : colors.light, color: mesaFiltro === "Todas" ? "#fff" : colors.primary, fontWeight: 500, fontSize: 13 }}>Todas</button>
                 {MESAS.map(m => (
-                  <button key={m} onClick={() => setMesaQR(m)}
-                    style={{ ...s.btn(m === mesaQR ? "primary" : "sec"), padding: "6px 14px", fontSize: 13 }}>
-                    {m}
+                  <button key={m} onClick={() => setMesaFiltro(m)} style={{ padding: "6px 14px", borderRadius: 20, border: "none", cursor: "pointer", background: mesaFiltro === m ? colors.accent : colors.light, color: mesaFiltro === m ? "#fff" : colors.primary, fontWeight: 500, fontSize: 13, position: "relative" }}>
+                    {m} {pedidosActivosPorMesa[m] > 0 && <span style={{ background: "#E24B4A", color: "#fff", borderRadius: "50%", width: 16, height: 16, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10, marginLeft: 4 }}>{pedidosActivosPorMesa[m]}</span>}
                   </button>
                 ))}
               </div>
-              <div style={{ ...s.card, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "24px" }}>
-                <div style={{ fontWeight: 700, fontSize: 18 }}>☕ Café Del Centro</div>
-                <div id="qr-svg-export" style={{ border: `4px solid ${colors.primary}`, borderRadius: 12, padding: 12, background: "#fff" }}>
-                  <QRCode mesa={mesaQR} id="qr-canvas" />
+
+              {pedidosFiltrados.length === 0 && (
+                <div style={{ textAlign: "center", color: colors.muted, padding: "40px 0", fontSize: 15 }}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+                  No hay pedidos {mesaFiltro !== "Todas" ? `para ${mesaFiltro}` : ""}.
                 </div>
-                <div style={{ fontWeight: 600, fontSize: 16, color: colors.accent }}>{mesaQR}</div>
-                <div style={{ fontSize: 13, color: colors.muted, textAlign: "center" }}>Escaneá para ver el menú y hacer tu pedido</div>
-                <button style={s.btn("primary")} onClick={() => {
-                  const svg = document.getElementById("qr-svg-export");
-                  const svgData = new XMLSerializer().serializeToString(svg);
-                  const canvas = document.createElement("canvas");
-                  canvas.width = 400; canvas.height = 520;
-                  const ctx = canvas.getContext("2d");
-                  ctx.fillStyle = "#FDF6EE";
-                  ctx.fillRect(0, 0, 400, 520);
-                  ctx.fillStyle = "#6B3A2A";
-                  ctx.font = "bold 22px sans-serif";
-                  ctx.textAlign = "center";
-                  ctx.fillText("☕ Café Del Centro", 200, 44);
-                  const img = new Image();
-                  const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-                  const url = URL.createObjectURL(blob);
-                  img.onload = () => {
-                    ctx.drawImage(img, 100, 60, 200, 200);
-                    ctx.fillStyle = "#C8813A";
-                    ctx.font = "bold 20px sans-serif";
-                    ctx.fillText(mesaQR, 200, 290);
-                    ctx.fillStyle = "#9A7B6B";
-                    ctx.font = "14px sans-serif";
-                    ctx.fillText("Escaneá para ver el menú y pedir", 200, 316);
-                    URL.revokeObjectURL(url);
-                    const a = document.createElement("a");
-                    a.download = `QR-${mesaQR.replace(" ", "-")}.png`;
-                    a.href = canvas.toDataURL("image/png");
-                    a.click();
-                  };
-                  img.src = url;
-                }}>
-                  ⬇ Descargar QR
-                </button>
+              )}
+
+              {MESAS.filter(m => mesaFiltro === "Todas" || m === mesaFiltro).map(mesa => {
+                const pedidosMesa = pedidosFiltrados.filter(p => p.mesa === mesa);
+                if (pedidosMesa.length === 0) return null;
+                return (
+                  <div key={mesa}>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: colors.accent, marginBottom: 8, marginTop: 4, display: "flex", alignItems: "center", gap: 8 }}>
+                      🪑 {mesa}
+                      <span style={{ fontSize: 12, fontWeight: 400, color: colors.muted }}>{pedidosMesa.length} pedido{pedidosMesa.length > 1 ? "s" : ""}</span>
+                    </div>
+                    {pedidosMesa.map(p => (
+                      <div key={p.id} style={s.card}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                          <span style={{ fontSize: 13, color: colors.muted }}>🕐 {p.hora}</span>
+                          {estadoBadge(p.estado)}
+                        </div>
+                        {p.items.map((item, i) => <div key={i} style={{ fontSize: 13, color: colors.muted, marginBottom: 3 }}>{item.emoji} {item.nombre} x{item.cantidad} — ${(item.precio * item.cantidad).toLocaleString()}</div>)}
+                        <div style={{ fontWeight: 700, marginTop: 8, marginBottom: 12, fontSize: 15 }}>Total: ${p.total.toLocaleString()}</div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          {p.estado === "pendiente" && <button style={s.btn("primary")} onClick={() => cambiarEstado(p.id, "preparando")}>Iniciar preparación</button>}
+                          {p.estado === "preparando" && <button style={s.btn("success")} onClick={() => cambiarEstado(p.id, "listo")}>Marcar como listo</button>}
+                          {p.estado === "listo" && <button style={s.btn("danger")} onClick={() => setPedidos(prev => prev.filter(x => x.id !== p.id))}>Cerrar pedido</button>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+
+              <div style={{ ...s.card, marginTop: 20, background: colors.light }}>
+                <div style={{ fontWeight: 600, marginBottom: 12 }}>🔑 {cambiandoPass ? "Cambiar contraseña" : "Seguridad"}</div>
+                {!cambiandoPass ? (
+                  <button style={s.btn("sec")} onClick={() => setCambiandoPass(true)}>Cambiar contraseña</button>
+                ) : (
+                  <div>
+                    <input style={{ ...s.input, marginBottom: 8 }} type="password" placeholder="Contraseña actual" value={nuevaPass.actual} onChange={e => setNuevaPass(p => ({ ...p, actual: e.target.value }))} />
+                    <input style={{ ...s.input, marginBottom: 8 }} type="password" placeholder="Nueva contraseña" value={nuevaPass.nueva} onChange={e => setNuevaPass(p => ({ ...p, nueva: e.target.value }))} />
+                    <input style={{ ...s.input, marginBottom: 12 }} type="password" placeholder="Confirmar nueva contraseña" value={nuevaPass.confirmar} onChange={e => setNuevaPass(p => ({ ...p, confirmar: e.target.value }))} />
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button style={s.btn("primary")} onClick={cambiarContrasena}>Guardar</button>
+                      <button style={s.btn("sec")} onClick={() => { setCambiandoPass(false); setNuevaPass({ actual: "", nueva: "", confirmar: "" }); }}>Cancelar</button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {panelTab === "pedidos" && (
-            <div>
-              {pedidos.length === 0 && (
-                <div style={{ textAlign: "center", color: colors.muted, padding: "40px 0", fontSize: 15 }}>
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
-                  Aún no hay pedidos. Cuando los clientes escaneen el QR, aparecerán acá.
-                </div>
-              )}
-              {pedidos.map(p => (
-                <div key={p.id} style={s.card}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                    <div>
-                      <span style={{ fontWeight: 700, fontSize: 15 }}>{p.mesa}</span>
-                      <span style={{ color: colors.muted, fontSize: 12, marginLeft: 8 }}>{p.hora}</span>
-                    </div>
-                    {estadoBadge(p.estado)}
-                  </div>
-                  {p.items.map((item, i) => (
-                    <div key={i} style={{ fontSize: 13, color: colors.muted, marginBottom: 3 }}>
-                      {item.emoji} {item.nombre} x{item.cantidad} — ${(item.precio * item.cantidad).toLocaleString()}
-                    </div>
-                  ))}
-                  <div style={{ fontWeight: 700, marginTop: 8, marginBottom: 12, fontSize: 15 }}>Total: ${p.total.toLocaleString()}</div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    {p.estado === "pendiente" && (
-                      <button style={s.btn("primary")} onClick={() => cambiarEstado(p.id, "preparando")}>Iniciar preparación</button>
-                    )}
-                    {p.estado === "preparando" && (
-                      <button style={{ ...s.btn(), background: colors.successBg, color: colors.success }} onClick={() => cambiarEstado(p.id, "listo")}>Marcar como listo</button>
-                    )}
-                    {p.estado === "listo" && (
-                      <button style={s.btn("danger")} onClick={() => setPedidos(prev => prev.filter(x => x.id !== p.id))}>Cerrar pedido</button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
+          {/* GESTIÓN MENÚ */}
           {panelTab === "menu" && (
             <div>
               <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
@@ -396,38 +371,19 @@ export default function CafeteriaApp() {
                   {mostrandoFormulario ? "Cancelar" : "+ Nuevo producto"}
                 </button>
               </div>
-
               {mostrandoFormulario && (
                 <div style={{ ...s.card, background: colors.light, marginBottom: 16 }}>
                   <div style={{ fontWeight: 600, marginBottom: 12 }}>{editando ? "Editar producto" : "Nuevo producto"}</div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-                    <div>
-                      <label style={{ fontSize: 12, color: colors.muted, display: "block", marginBottom: 4 }}>Nombre</label>
-                      <input style={s.input} value={nuevoProducto.nombre} onChange={e => setNuevoProducto(p => ({ ...p, nombre: e.target.value }))} placeholder="Ej: Café con leche" />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 12, color: colors.muted, display: "block", marginBottom: 4 }}>Precio ($)</label>
-                      <input style={s.input} type="number" value={nuevoProducto.precio} onChange={e => setNuevoProducto(p => ({ ...p, precio: e.target.value }))} placeholder="Ej: 2000" />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 12, color: colors.muted, display: "block", marginBottom: 4 }}>Categoría</label>
-                      <select style={s.input} value={nuevoProducto.categoria} onChange={e => setNuevoProducto(p => ({ ...p, categoria: e.target.value }))}>
-                        {["Cafés", "Bebidas", "Comidas", "Dulces"].map(c => <option key={c}>{c}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 12, color: colors.muted, display: "block", marginBottom: 4 }}>Emoji</label>
-                      <input style={s.input} value={nuevoProducto.emoji} onChange={e => setNuevoProducto(p => ({ ...p, emoji: e.target.value }))} placeholder="☕" />
-                    </div>
-                    <div style={{ gridColumn: "1 / -1" }}>
-                      <label style={{ fontSize: 12, color: colors.muted, display: "block", marginBottom: 4 }}>Descripción</label>
-                      <input style={s.input} value={nuevoProducto.descripcion} onChange={e => setNuevoProducto(p => ({ ...p, descripcion: e.target.value }))} placeholder="Breve descripción del producto" />
-                    </div>
+                    <div><label style={{ fontSize: 12, color: colors.muted, display: "block", marginBottom: 4 }}>Nombre</label><input style={s.input} value={nuevoProducto.nombre} onChange={e => setNuevoProducto(p => ({ ...p, nombre: e.target.value }))} placeholder="Ej: Café con leche" /></div>
+                    <div><label style={{ fontSize: 12, color: colors.muted, display: "block", marginBottom: 4 }}>Precio ($)</label><input style={s.input} type="number" value={nuevoProducto.precio} onChange={e => setNuevoProducto(p => ({ ...p, precio: e.target.value }))} placeholder="Ej: 2000" /></div>
+                    <div><label style={{ fontSize: 12, color: colors.muted, display: "block", marginBottom: 4 }}>Categoría</label><select style={s.input} value={nuevoProducto.categoria} onChange={e => setNuevoProducto(p => ({ ...p, categoria: e.target.value }))}>{["Cafés", "Bebidas", "Comidas", "Dulces"].map(c => <option key={c}>{c}</option>)}</select></div>
+                    <div><label style={{ fontSize: 12, color: colors.muted, display: "block", marginBottom: 4 }}>Emoji</label><input style={s.input} value={nuevoProducto.emoji} onChange={e => setNuevoProducto(p => ({ ...p, emoji: e.target.value }))} placeholder="☕" /></div>
+                    <div style={{ gridColumn: "1 / -1" }}><label style={{ fontSize: 12, color: colors.muted, display: "block", marginBottom: 4 }}>Descripción</label><input style={s.input} value={nuevoProducto.descripcion} onChange={e => setNuevoProducto(p => ({ ...p, descripcion: e.target.value }))} placeholder="Breve descripción" /></div>
                   </div>
                   <button style={s.btn("primary")} onClick={guardarProducto}>{editando ? "Guardar cambios" : "Agregar al menú"}</button>
                 </div>
               )}
-
               {["Cafés", "Bebidas", "Comidas", "Dulces"].map(cat => (
                 <div key={cat}>
                   <div style={{ fontWeight: 600, color: colors.muted, fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>{cat}</div>
@@ -440,11 +396,8 @@ export default function CafeteriaApp() {
                           <div style={{ fontSize: 12, color: colors.muted }}>${p.precio.toLocaleString()} — {p.descripcion}</div>
                         </div>
                       </div>
-                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                        <button title={p.disponible ? "Deshabilitar" : "Habilitar"} onClick={() => toggleDisponible(p.id)}
-                          style={{ ...s.btn(p.disponible ? "sec" : "danger"), padding: "5px 10px", fontSize: 12 }}>
-                          {p.disponible ? "Ocultar" : "Mostrar"}
-                        </button>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => toggleDisponible(p.id)} style={{ ...s.btn(p.disponible ? "sec" : "danger"), padding: "5px 10px", fontSize: 12 }}>{p.disponible ? "Ocultar" : "Mostrar"}</button>
                         <button onClick={() => iniciarEdicion(p)} style={{ ...s.btn("sec"), padding: "5px 10px", fontSize: 12 }}>Editar</button>
                         <button onClick={() => eliminarProducto(p.id)} style={{ ...s.btn("danger"), padding: "5px 10px", fontSize: 12 }}>✕</button>
                       </div>
@@ -452,6 +405,28 @@ export default function CafeteriaApp() {
                   ))}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* QR */}
+          {panelTab === "qr" && (
+            <div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                {MESAS.map(m => <button key={m} onClick={() => setMesaQR(m)} style={{ ...s.btn(m === mesaQR ? "primary" : "sec"), padding: "6px 14px", fontSize: 13 }}>{m}</button>)}
+              </div>
+              <div style={{ ...s.card, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "24px" }}>
+                <div style={{ fontWeight: 700, fontSize: 18 }}>☕ Café Del Centro</div>
+                <div style={{ border: `4px solid ${colors.primary}`, borderRadius: 12, padding: 12, background: "#fff" }}>
+                  <QRCode mesa={mesaQR} id="qr-canvas" />
+                </div>
+                <div style={{ fontWeight: 600, fontSize: 16, color: colors.accent }}>{mesaQR}</div>
+                <div style={{ fontSize: 13, color: colors.muted, textAlign: "center" }}>Escaneá para ver el menú y hacer tu pedido</div>
+                <button style={s.btn("primary")} onClick={() => {
+                  const el = document.getElementById("qr-canvas");
+                  const img = el?.querySelector("img");
+                  if (img) { const a = document.createElement("a"); a.download = `QR-${mesaQR.replace(" ", "-")}.png`; a.href = img.src; a.click(); }
+                }}>⬇ Descargar QR</button>
+              </div>
             </div>
           )}
         </div>
